@@ -1,9 +1,22 @@
+import { avatar } from "@nextui-org/react";
 import { GenderFemale } from "@phosphor-icons/react";
 
 export const AVATARS = [
   {
+    avatar_id: "default",
+    name: "Monica in Sleeveless",
+  },
+  {
     avatar_id: "Angela-inblackskirt-20220820",
     name: "Angela in Black Dress",
+  },
+  {
+    avatar_id: "Anna_public_20240108",
+    name: "Anna in White T-shirt",
+  },
+  {
+    avatar_id: "Anna_public_3_20240108",
+    name: "Anna in Brown T-shirt",
   },
   {
     avatar_id: "Briana_public_3_20240110",
@@ -34,6 +47,10 @@ export const AVATARS = [
     name: "Tyler in Suit",
   },
   {
+    avatar_id: "Tyler-incasualsuit-20220721",
+    name: "Tyler in Casual Suit",
+  },
+  {
     avatar_id: "Wade_public_2_20240228",
     name: "Wade in Black Jacket",
   },
@@ -42,20 +59,20 @@ export const AVATARS = [
     name: "Edward in Blue Shirt",
   },
   {
-    avatar_id: "Tyler-incasualsuit-20220721",
-    name: "Tyler in Casual Suit",
-  },
-  {
-    avatar_id: "Anna_public_3_20240108",
-    name: "Anna in Brown T-shirt",
-  },
-  {
     avatar_id: "Susan_public_2_20240328",
     name: "Susan in Black Shirt",
   },
   {
     avatar_id: "josh_lite3_20230714",
     name: "Joshua Heygen CEO",
+  },
+  {
+    avatar_id: "Wayne_20240711",
+    name: "Wayne",
+  },
+  {
+    avatar_id: "josh_lite3_20230714",
+    name: "Joshua HeyGen CEO",
   },
 ];
 

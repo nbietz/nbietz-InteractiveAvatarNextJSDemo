@@ -2,6 +2,7 @@ import { AVATARS, VOICES } from "@/app/lib/constants";
 import {
   Configuration,
   NewSessionData,
+  NewSessionRequestQualityEnum,
   StreamingAvatarApi,
 } from "@heygen/streaming-avatar";
 import {
@@ -36,6 +37,7 @@ export default function InteractiveAvatar() {
   const [debug, setDebug] = useState<string>();
   const [avatarId, setAvatarId] = useState<string>("");
   const [voiceId, setVoiceId] = useState<string>("");
+  const [quality, setQuality] = useState<NewSessionRequestQualityEnum>("low");
   const [data, setData] = useState<NewSessionData>();
   const [text, setText] = useState<string>("");
   const [initialized, setInitialized] = useState(false); // Track initialization
@@ -78,7 +80,8 @@ export default function InteractiveAvatar() {
         method: "POST",
       });
       const token = await response.text();
-      console.log("Access Token:", token); // Log the token to verify
+      //console.log("Access Token:", token); // Log the token to verify
+      console.log("Access Token obtained");
       return token;
     } catch (error) {
       console.error("Error fetching access token:", error);
@@ -97,7 +100,7 @@ export default function InteractiveAvatar() {
       const res = await avatar.current.createStartAvatar(
         {
           newSessionRequest: {
-            quality: "low",
+            quality: quality,
             avatarName: avatarId,
             voice: { voiceId: voiceId },
           },
@@ -105,6 +108,8 @@ export default function InteractiveAvatar() {
         setDebug
       );
       setData(res);
+      console.log("Session started:", data);
+      setDebug(`Session started ${res.sessionId}`);
       setStream(avatar.current.mediaStream);
     } catch (error) {
       console.error("Error starting avatar session:", error);
@@ -117,7 +122,8 @@ export default function InteractiveAvatar() {
 
   async function updateToken() {
     const newToken = await fetchAccessToken();
-    console.log("Updating Access Token:", newToken); // Log token for debugging
+    //console.log("Updating Access Token:", newToken); // Log token for debugging
+    console.log("Updating Access Token:");
     avatar.current = new StreamingAvatarApi(
       new Configuration({ accessToken: newToken })
     );
@@ -178,7 +184,8 @@ export default function InteractiveAvatar() {
   useEffect(() => {
     async function init() {
       const newToken = await fetchAccessToken();
-      console.log("Initializing with Access Token:", newToken); // Log token for debugging
+      //console.log("Initializing with Access Token:", newToken); // Log token for debugging
+      console.log("Initializing with Access Token:");
       avatar.current = new StreamingAvatarApi(
         new Configuration({ accessToken: newToken, jitterBuffer: 200 })
       );
@@ -343,6 +350,23 @@ export default function InteractiveAvatar() {
                   ))}
                 </Select>
               </div>
+              <div className="flex flex-col gap-2 w-full">
+                <p className="text-sm font-medium leading-none">
+                  Quality
+                </p>
+                <Select
+                  size="md"
+                  value={quality}
+                  onChange={(e) => {
+                    setQuality(e.target.value as NewSessionRequestQualityEnum);
+                  }}
+                >
+                  <SelectItem value="low" key={"low"}>Low</SelectItem>
+                  <SelectItem value="medium" key={"medium"}>Medium</SelectItem>
+                  <SelectItem value="high" key={"high"}>High</SelectItem>
+                </Select>
+              </div>
+
               <Button
                 size="md"
                 onClick={startSession}
@@ -413,11 +437,20 @@ export default function InteractiveAvatar() {
           />
         </CardFooter>
       </Card>
-      <p className="font-mono text-right">
-        <span className="font-bold">Console:</span>
-        <br />
-        {debug}
-      </p>
+      <div className="flex flex-col gap-4">
+      {stream ? (
+        <p className="font-mono text-left">
+        <span className="font-bold">Session ID:</span>
+          <br />
+          {data?.sessionId}
+        </p>
+      ) : null}
+        <p className="font-mono text-right">
+          <span className="font-bold">Console:</span>
+          <br />
+          {debug}
+        </p>
+      </div>
     </div>
   );
 }

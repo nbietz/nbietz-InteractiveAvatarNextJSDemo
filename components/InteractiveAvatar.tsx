@@ -202,26 +202,32 @@ export default function InteractiveAvatar() {
   }, [mediaStream, stream]);
 
   function startRecording() {
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        mediaRecorder.current = new MediaRecorder(stream);
-        mediaRecorder.current.ondataavailable = (event) => {
-          audioChunks.current.push(event.data);
-        };
-        mediaRecorder.current.onstop = () => {
-          const audioBlob = new Blob(audioChunks.current, {
-            type: "audio/wav",
-          });
-          audioChunks.current = [];
-          transcribeAudio(audioBlob);
-        };
-        mediaRecorder.current.start();
-        setRecording(true);
-      })
-      .catch((error) => {
-        console.error("Error accessing microphone:", error);
-      });
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          mediaRecorder.current = new MediaRecorder(stream);
+          mediaRecorder.current.ondataavailable = (event) => {
+            audioChunks.current.push(event.data);
+          };
+          mediaRecorder.current.onstop = () => {
+            const audioBlob = new Blob(audioChunks.current, {
+              type: "audio/wav",
+            });
+            audioChunks.current = [];
+            transcribeAudio(audioBlob);
+          };
+          mediaRecorder.current.start();
+          setRecording(true);
+        })
+        .catch((error) => {
+          console.error("Error accessing microphone:", error);
+          setDebug("Error accessing microphone");
+        });
+    } else {
+      console.error("getUserMedia is not supported in this browser.");
+      setDebug("getUserMedia is not supported in this browser.");
+    }
   }
 
   function stopRecording() {

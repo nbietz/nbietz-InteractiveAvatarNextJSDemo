@@ -1,4 +1,42 @@
+import { GenderFemale } from "@phosphor-icons/react";
+
 export const AVATARS = [
+  {
+    avatar_id: "Angela-inblackskirt-20220820",
+    name: "Angela in Black Dress",
+  },
+  {
+    avatar_id: "Briana_public_3_20240110",
+    name: "Briana in Brown suit",
+  },
+  {
+    avatar_id: "Justin_public_3_20240308",
+    name: "Justin in White Shirt",
+  },
+  {
+    avatar_id: "Kristin_public_2_20240108",
+    name: "Kristin in Black Suit",
+  },
+  {
+    avatar_id: "Kayla-incasualsuit-20220818",
+    name: "Kayla in Casual Suit",
+  },
+  {
+    avatar_id: "Lily_public_pro1_20230614",
+    name: "Leah in Black Suit",
+  },
+    {
+    avatar_id: "Tyler-inshirt-20220721",
+    name: "Tyler in Shirt",
+  },
+  {
+    avatar_id: "Tyler-insuit-20220721",
+    name: "Tyler in Suit",
+  },
+  {
+    avatar_id: "Wade_public_2_20240228",
+    name: "Wade in Black Jacket",
+  },
   {
     avatar_id: "Eric_public_pro2_20230608",
     name: "Edward in Blue Shirt",
@@ -22,6 +60,66 @@ export const AVATARS = [
 ];
 
 export const VOICES = [
+  {
+    voice_id: "c29568d0e4a54715bb62bb40daa67875",
+    language: "English",
+    gender: "Female",
+    name: "Alison - Cheerful",
+    preview_audio:
+      "",
+    support_pause: false,
+    emotion_support: false,
+  },
+  {
+    voice_id: "71b0aa6499f6458e8b040818a017db1f",
+    language: "English",
+    genger: "Male",
+    name: "Nova",
+    preview_audio:
+      "",
+    support_pause: false,
+    emotion_support: false,
+  },
+  {
+    voice_id: "8273e0a033074b5bb98d7ce3ab727bd9",
+    language: "English",
+    gender: "Male",
+    name: "Shimmer",
+    preview_audio:
+      "",
+    support_pause: false,
+    emotion_support: false,
+  },
+  {
+    voice_id: "bfc6d0242de24106a104339f0618b68d",
+    language: "English",
+    gender: "Male",
+    name: "Alloy",
+    preview_audio:
+      "",
+    support_pause: false,
+    emotion_support: false,
+  },
+  {
+    voice_id: "6d091fbb994c439eb9d249ba8b0e62da",
+    language: "English",
+    gender: "Male",
+    name: "Jahmai - Friendly",
+    preview_audio:
+      "",
+    support_pause: false,
+    emotion_support: false,
+  },
+  {
+    voice_id: "8b92884579014f8e8147836bbd0c13ca",
+    language: "English",
+    gender: "Male",
+    name: "Fable",
+    preview_audio:
+      "",
+    support_pause: false,
+    emotion_support: false,
+  },
   {
     voice_id: "077ab11b14f04ce0b49b5f6e5cc20979",
     language: "English",

@@ -21,13 +21,25 @@ import { Microphone, MicrophoneStage } from "@phosphor-icons/react";
 import { useChat } from "ai/react";
 import clsx from "clsx";
 import OpenAI from "openai";
+import LangflowClient from "@/app/lib/LangflowClient";
 import { useEffect, useRef, useState } from "react";
 import InteractiveAvatarTextInput from "./InteractiveAvatarTextInput";
+import { set } from "zod";
 
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true,
 });
+
+// Instantiate a new LangflowClient
+const LANGFLOW_API_KEY = process.env.NEXT_PUBLIC_LANGFLOW_API_KEY ?? "";
+const LANGFLOW_BASE_URL = process.env.NEXT_PUBLIC_LANGFLOW_BASE_URL ?? "";
+const langflowClient = new LangflowClient(
+  LANGFLOW_BASE_URL,
+  LANGFLOW_API_KEY
+);
+
+
 
 export default function InteractiveAvatar() {
   const [isLoadingSession, setIsLoadingSession] = useState(false);
@@ -185,11 +197,12 @@ export default function InteractiveAvatar() {
     async function init() {
       const newToken = await fetchAccessToken();
       //console.log("Initializing with Access Token:", newToken); // Log token for debugging
-      console.log("Initializing with Access Token:");
+      console.log("Initializing with Access Token");
       avatar.current = new StreamingAvatarApi(
         new Configuration({ accessToken: newToken, jitterBuffer: 200 })
       );
       setInitialized(true); // Set initialized to true
+      setDebug("Avatar API initialized");
     }
     init();
 
@@ -261,6 +274,54 @@ export default function InteractiveAvatar() {
       console.error("Error transcribing audio:", error);
     }
   }
+
+  async function handleSubmitToLangflow() {
+
+    const flowIdOrName = process.env.NEXT_PUBLIC_LANGFLOW_FLOW_ID ?? "";
+    const inputValue = input;
+    const stream = false;
+    const tweaks = {
+  "ChatInput-HT7xW": {},
+  "Prompt-0YpGc": {},
+  "ChatOutput-zbK52": {},
+  "OpenAIModel-zkrop": {}
+};
+    let response = await langflowClient.runFlow(
+        flowIdOrName,
+        inputValue,
+        tweaks,
+        stream,
+        (data) => console.log("Received:", data.chunk), // onUpdate
+        (message) => console.log("Stream Closed:", message), // onClose
+        (error) => console.log("Stream Error:", error) // onError
+    );
+    if (!stream) {
+        const flowOutputs = response.outputs[0];
+        const firstComponentOutputs = flowOutputs.outputs[0];
+        const output = firstComponentOutputs.outputs.message;
+        // outputs[0].outputs[0].outputs.message.message.text
+        const message = output.message;
+        console.log("Final Output:", message.text);
+
+        // Send the response to the Interactive Avatar
+        if (!initialized || !avatar.current) {
+          setDebug("Avatar API not initialized");
+          return;
+        }
+  
+        //send the ChatGPT response to the Interactive Avatar
+        await avatar.current
+          .speak({
+            taskRequest: { text: message.text, sessionId: data?.sessionId },
+          })
+          .catch((e) => {
+            setDebug(e.message);
+          });
+        setIsLoadingChat(false);
+        setInput("");          
+    }
+
+  } 
 
   return (
     <div className="w-full flex flex-col gap-4">
@@ -384,6 +445,7 @@ export default function InteractiveAvatar() {
         <CardFooter className="flex flex-col gap-3">
           <InteractiveAvatarTextInput
             label="Repeat"
+            aria-label="Repeat"
             placeholder="Type something for the avatar to repeat"
             input={text}
             onSubmit={handleSpeak}
@@ -392,7 +454,8 @@ export default function InteractiveAvatar() {
             loading={isLoadingRepeat}
           />
           <InteractiveAvatarTextInput
-            label="Chat"
+            label="Chat-GPT"
+            aria-label="ChatGPT"
             placeholder="Chat with the avatar (uses ChatGPT)"
             input={input}
             onSubmit={() => {
@@ -404,6 +467,7 @@ export default function InteractiveAvatar() {
               handleSubmit();
             }}
             setInput={setInput}
+            disabled={!stream}
             loading={isLoadingChat}
             endContent={
               <Tooltip
@@ -433,7 +497,51 @@ export default function InteractiveAvatar() {
                 </Button>
               </Tooltip>
             }
+          />
+          <InteractiveAvatarTextInput
+            label="Langflow"
+            aria-label="Langflow"
+            placeholder="Chat with the avatar (uses a Langflow flow)"
+            input={input}
+            onSubmit={() => {
+              setIsLoadingChat(true);
+              if (!input) {
+                setDebug("Please enter text to send to the Langflow flow");
+                return;
+              }
+              handleSubmitToLangflow();
+            }}
+            setInput={setInput}
             disabled={!stream}
+            loading={isLoadingChat}
+            endContent={
+              <Tooltip
+                content={!recording ? "Start recording" : "Stop recording"}
+              >
+                <Button
+                  onClick={!recording ? startRecording : stopRecording}
+                  isDisabled={!stream}
+                  isIconOnly
+                  className={clsx(
+                    "mr-4 text-white",
+                    !recording
+                      ? "bg-gradient-to-tr from-indigo-500 to-indigo-300"
+                      : ""
+                  )}
+                  size="sm"
+                  variant="shadow"
+                >
+                  {!recording ? (
+                    <Microphone size={20} />
+                  ) : (
+                    <>
+                      <div className="absolute h-full w-full bg-gradient-to-tr from-indigo-500 to-indigo-300 animate-pulse -z-10"></div>
+                      <MicrophoneStage size={20} />
+                    </>
+                  )}
+                </Button>
+              </Tooltip>
+            }
           />
         </CardFooter>
       </Card>

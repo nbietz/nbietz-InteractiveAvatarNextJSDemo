@@ -4,6 +4,7 @@ import clsx from "clsx";
 
 interface StreamingAvatarTextInputProps {
   label: string;
+  ariaLabel?: string;
   placeholder: string;
   input: string;
   onSubmit: () => void;
@@ -15,6 +16,7 @@ interface StreamingAvatarTextInputProps {
 
 export default function InteractiveAvatarTextInput({
   label,
+  ariaLabel,
   placeholder,
   input,
   onSubmit,
@@ -62,6 +64,7 @@ export default function InteractiveAvatarTextInput({
         </div>
       }
       label={label}
+      aria-label={ariaLabel}
       placeholder={placeholder}
       size="sm"
       value={input}

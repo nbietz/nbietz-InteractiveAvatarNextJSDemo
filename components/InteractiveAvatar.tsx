@@ -24,7 +24,6 @@ import OpenAI from "openai";
 import LangflowClient from "@/app/lib/LangflowClient";
 import { useEffect, useRef, useState } from "react";
 import InteractiveAvatarTextInput from "./InteractiveAvatarTextInput";
-import { set } from "zod";
 
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
@@ -42,6 +41,7 @@ const langflowClient = new LangflowClient(
 
 
 export default function InteractiveAvatar() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [isLoadingRepeat, setIsLoadingRepeat] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
@@ -58,6 +58,7 @@ export default function InteractiveAvatar() {
   const avatar = useRef<StreamingAvatarApi | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+
   const { input, setInput, handleSubmit } = useChat({
     onFinish: async (message) => {
       console.log("ChatGPT Response:", message);
@@ -85,6 +86,7 @@ export default function InteractiveAvatar() {
       },
     ],
   });
+
 
   async function fetchAccessToken() {
     try {
@@ -197,7 +199,7 @@ export default function InteractiveAvatar() {
     async function init() {
       const newToken = await fetchAccessToken();
       //console.log("Initializing with Access Token:", newToken); // Log token for debugging
-      console.log("Initializing with Access Token");
+      console.log("Obtained HeyGen Access Token. Initializing Avatar API...");
       avatar.current = new StreamingAvatarApi(
         new Configuration({ accessToken: newToken, jitterBuffer: 200 })
       );
@@ -209,6 +211,20 @@ export default function InteractiveAvatar() {
     return () => {
       endSession();
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchSessionId = async () => {
+      // Get the session ID from the session API endpoint
+      const response = await fetch("/api/session", {
+        method: "GET",
+      });
+      const sessionCookie = await response.text(); // Declare and assign the value of sessionCookie
+      setSessionId(sessionCookie);
+      console.log("SessionID: ", sessionCookie);
+    };
+  
+    fetchSessionId();
   }, []);
 
   useEffect(() => {
@@ -281,11 +297,27 @@ export default function InteractiveAvatar() {
     const inputValue = input;
     const stream = false;
     const tweaks = {
-  "ChatInput-HT7xW": {},
-  "Prompt-0YpGc": {},
-  "ChatOutput-zbK52": {},
-  "OpenAIModel-zkrop": {}
-};
+      "ChatInput-HT7xW": {
+        "sender": "User",
+        "sender_name": sessionId?.toString() ?? "",
+        "session_id": sessionId?.toString() ?? "",
+      },
+      "Prompt-0YpGc": {},
+      "ChatOutput-zbK52": {},
+      "OpenAIModel-zkrop": {},
+      "FirecrawlCrawlApi-TfWDi": {},
+      "FirecrawlScrapeApi-ZQY7h": {},
+      "ParseData-o1cOP": {},
+      "OpenAIEmbeddings-PfYTw": {},
+      "AstraDB-eolrR": {},
+      "RecursiveCharacterTextSplitter-T8NMq": {},
+      "Memory-Pirjh": {},
+      "AstraDBChatMemory-rF9OP": {},
+      "TextInput-nNN30": {
+        "input_value": sessionId?.toString() ?? "",
+      },
+      "StoreMessage-K0Mpg": {}
+    };
     let response = await langflowClient.runFlow(
         flowIdOrName,
         inputValue,
@@ -546,13 +578,19 @@ export default function InteractiveAvatar() {
         </CardFooter>
       </Card>
       <div className="flex flex-col gap-4">
-      {stream ? (
         <p className="font-mono text-left">
-        <span className="font-bold">Session ID:</span>
+          <span className="font-bold">Langchain Session ID:</span>
           <br />
-          {data?.sessionId}
+          {sessionId}
+          {stream ? (
+            <>
+            <br />
+            <span className="font-bold">HeyGen Session ID:</span>
+            <br />
+            {data?.sessionId}
+            <br /></>
+          ) : null}
         </p>
-      ) : null}
         <p className="font-mono text-right">
           <span className="font-bold">Console:</span>
           <br />

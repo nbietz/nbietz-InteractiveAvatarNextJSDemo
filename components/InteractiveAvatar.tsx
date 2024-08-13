@@ -297,27 +297,26 @@ export default function InteractiveAvatar() {
     const inputValue = input;
     const stream = false;
     const tweaks = {
-      "ChatInput-HT7xW": {
+      "ChatInput-8e1CK": {
         "sender": "User",
         "sender_name": sessionId?.toString() ?? "",
         "session_id": sessionId?.toString() ?? "",
       },
-      "Prompt-0YpGc": {},
-      "ChatOutput-zbK52": {},
-      "OpenAIModel-zkrop": {},
-      "FirecrawlCrawlApi-TfWDi": {},
-      "FirecrawlScrapeApi-ZQY7h": {},
-      "ParseData-o1cOP": {},
-      "OpenAIEmbeddings-PfYTw": {},
-      "AstraDB-eolrR": {},
-      "RecursiveCharacterTextSplitter-T8NMq": {},
-      "Memory-Pirjh": {},
-      "AstraDBChatMemory-rF9OP": {},
-      "TextInput-nNN30": {
+      "TextInput-J0FIS": {
         "input_value": sessionId?.toString() ?? "",
       },
-      "StoreMessage-K0Mpg": {}
-    };
+      "Prompt-Rklq2": {},
+      "ChatOutput-Rdtef": {},
+      "OpenAIModel-cf8hT": {},
+      "FirecrawlCrawlApi-mVjY7": {},
+      "FirecrawlScrapeApi-rSnUI": {},
+      "ParseData-xB0DP": {},
+      "OpenAIEmbeddings-q1I4J": {},
+      "AstraDB-iupHx": {},
+      "RecursiveCharacterTextSplitter-3vmk5": {},
+      "Memory-0pOjW": {},
+      "TextOutput-b5dVR": {}
+        };
     let response = await langflowClient.runFlow(
         flowIdOrName,
         inputValue,

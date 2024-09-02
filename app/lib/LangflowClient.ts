@@ -28,8 +28,8 @@ class LangflowClient {
         }
     }
 
-    async initiateSession(flowId: string, inputValue: any, stream: boolean = false, tweaks: Record<string, any> = {}): Promise<any> {
-        const endpoint = `/api/v1/run/${flowId}?stream=${stream}`;
+    async initiateSession(flowId: string, langflowId: string, inputValue: any, stream: boolean = false, tweaks: Record<string, any> = {}): Promise<any> {
+        const endpoint = `/lf/${langflowId}/api/v1/run/${flowId}?stream=${stream}`;
         return this.post(endpoint, { input_value: inputValue, tweaks: tweaks });
     }
 
@@ -55,9 +55,9 @@ class LangflowClient {
         return eventSource;
     }
 
-    async runFlow(flowIdOrName: string, inputValue: any, tweaks: Record<string, any>, stream = false, onUpdate: (data: any) => void, onClose: (error: any) => void, onError: (error: any) => void) {
+    async runFlow(flowIdOrName: string, langflowId: string, inputValue: any, tweaks: Record<string, any>, stream = false, onUpdate: (data: any) => void, onClose: (error: any) => void, onError: (error: any) => void) {
         try {
-            const initResponse = await this.initiateSession(flowIdOrName, inputValue, stream, tweaks);
+            const initResponse = await this.initiateSession(flowIdOrName, langflowId, inputValue, stream, tweaks);
             console.log('Init Response:', initResponse);
             if (stream && initResponse && initResponse.outputs && initResponse.outputs[0].outputs[0].artifacts.stream_url) {
                 const streamUrl = initResponse.outputs[0].outputs[0].artifacts.stream_url;

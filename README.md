@@ -1,4 +1,5 @@
 # HeyGen Interactive Avatar NextJS Demo
+# With Langflow integration by Nate Bietz
 
 ![HeyGen Interactive Avatar NextJS Demo Screenshot](./public/demo.png)
 

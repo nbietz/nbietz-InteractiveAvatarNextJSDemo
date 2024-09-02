@@ -22,6 +22,7 @@ import { useChat } from "ai/react";
 import clsx from "clsx";
 import OpenAI from "openai";
 import LangflowClient from "@/app/lib/LangflowClient";
+import FlowiseClient from "@/app/lib/FlowiseClient";
 import { useEffect, useRef, useState } from "react";
 import InteractiveAvatarTextInput from "./InteractiveAvatarTextInput";
 
@@ -38,10 +39,18 @@ const langflowClient = new LangflowClient(
   LANGFLOW_API_KEY
 );
 
+// Instantiate a new FlowiseClient
+const FLOWISE_API_KEY = process.env.NEXT_PUBLIC_FLOWISE_API_KEY ?? "";
+const FLOWISE_BASE_URL = process.env.NEXT_PUBLIC_FLOWISE_BASE_URL ?? "";
+const flowiseClient = new FlowiseClient(
+  FLOWISE_BASE_URL,
+  FLOWISE_API_KEY
+);
+
 
 
 export default function InteractiveAvatar() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [isLoadingRepeat, setIsLoadingRepeat] = useState(false);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
@@ -128,7 +137,7 @@ export default function InteractiveAvatar() {
     } catch (error) {
       console.error("Error starting avatar session:", error);
       setDebug(
-        `There was an error starting the session. ${voiceId ? "This custom voice ID may not be supported." : ""}`
+        `There was an error starting the session. ${voiceId ? "This custom Voice or Avatar may not be supported." : ""}`
       );
     }
     setIsLoadingSession(false);
@@ -220,7 +229,7 @@ export default function InteractiveAvatar() {
         method: "GET",
       });
       const sessionCookie = await response.text(); // Declare and assign the value of sessionCookie
-      setSessionId(sessionCookie);
+      setChatSessionId(sessionCookie);
       console.log("SessionID: ", sessionCookie);
     };
   
@@ -293,32 +302,36 @@ export default function InteractiveAvatar() {
 
   async function handleSubmitToLangflow() {
 
-    const flowIdOrName = process.env.NEXT_PUBLIC_LANGFLOW_FLOW_ID ?? "";
+    const flowIdOrName = process.env.NEXT_PUBLIC_LANGFLOW_ENDPOINT ?? "";
+    const langflowId = process.env.NEXT_PUBLIC_LANGFLOW_FLOW_ID ?? "";
     const inputValue = input;
     const stream = false;
     const tweaks = {
-      "ChatInput-8e1CK": {
-        "sender": "User",
-        "sender_name": sessionId?.toString() ?? "",
-        "session_id": sessionId?.toString() ?? "",
-      },
-      "TextInput-J0FIS": {
-        "input_value": sessionId?.toString() ?? "",
-      },
-      "Prompt-Rklq2": {},
-      "ChatOutput-Rdtef": {},
-      "OpenAIModel-cf8hT": {},
-      "FirecrawlCrawlApi-mVjY7": {},
-      "FirecrawlScrapeApi-rSnUI": {},
-      "ParseData-xB0DP": {},
-      "OpenAIEmbeddings-q1I4J": {},
-      "AstraDB-iupHx": {},
-      "RecursiveCharacterTextSplitter-3vmk5": {},
-      "Memory-0pOjW": {},
-      "TextOutput-b5dVR": {}
-        };
+      "ChatInput-AEH7b": {},
+      "AstraVectorStoreComponent-KGShY": {},
+      "ParseData-KThnt": {},
+      "Prompt-NJmAO": {},
+      "ChatOutput-YV57G": {},
+      "AstraVectorStoreComponent-seBT4": {},
+      "OpenAIEmbeddings-eS4p1": {},
+      "OpenAIEmbeddings-ZpgE1": {},
+      "OpenAIModel-u4eQs": {},
+      "FirecrawlCrawlApi-8rreb": {},
+      "FirecrawlScrapeApi-qW6sy": {},
+      "SplitText-VNK9A": {},
+      "AstraVectorize-eBOo3": {},
+      "AstraVectorize-qdTfB": {},
+      "ParseData-RT6hq": {},
+      "FilterData-rQcI1": {},
+      "RecursiveCharacterTextSplitter-hg0BJ": {},
+      "CreateData-2ESH7": {},
+      "File-WsZ45": {},
+      "URL-WgEGh": {},
+      "IDGenerator-T9ST2": {}
+    };
     let response = await langflowClient.runFlow(
         flowIdOrName,
+        langflowId,
         inputValue,
         tweaks,
         stream,
@@ -351,6 +364,40 @@ export default function InteractiveAvatar() {
         setIsLoadingChat(false);
         setInput("");          
     }
+
+  } 
+
+  async function handleSubmitToFlowise() {
+
+    const flowIdOrName = process.env.NEXT_PUBLIC_FLOW_ID ?? "";
+    const inputValue = input;
+    const overrideConfig = { sessionId: chatSessionId };
+    let response = await flowiseClient.runFlow(
+        flowIdOrName,
+        inputValue,
+        overrideConfig,
+        (data) => console.log("Received:", data.chunk), // onUpdate
+        (message) => console.log("Stream Closed:", message), // onClose
+        (error) => console.log("Stream Error:", error) // onError
+    );
+    console.log("Final Output:", response.text);
+
+    // Send the response to the Interactive Avatar
+    if (!initialized || !avatar.current) {
+      setDebug("Avatar API not initialized");
+      return;
+    }
+
+    //send the ChatGPT response to the Interactive Avatar
+    await avatar.current
+      .speak({
+        taskRequest: { text: response.text, sessionId: data?.sessionId },
+      })
+      .catch((e) => {
+        setDebug(e.message);
+      });
+    setIsLoadingChat(false);
+    setInput("");          
 
   } 
 
@@ -530,17 +577,17 @@ export default function InteractiveAvatar() {
             }
           />
           <InteractiveAvatarTextInput
-            label="Langflow"
-            aria-label="Langflow"
-            placeholder="Chat with the avatar (uses a Langflow flow)"
+            label="ZoBot"
+            aria-label="ZoBot"
+            placeholder="Chat with the ZoBot"
             input={input}
             onSubmit={() => {
               setIsLoadingChat(true);
               if (!input) {
-                setDebug("Please enter text to send to the Langflow flow");
+                setDebug("Please enter text to send to ZoBot");
                 return;
               }
-              handleSubmitToLangflow();
+              handleSubmitToFlowise();
             }}
             setInput={setInput}
             disabled={!stream}
@@ -578,9 +625,9 @@ export default function InteractiveAvatar() {
       </Card>
       <div className="flex flex-col gap-4">
         <p className="font-mono text-left">
-          <span className="font-bold">Langchain Session ID:</span>
+          <span className="font-bold">Chat Session ID:</span>
           <br />
-          {sessionId}
+          {chatSessionId}
           {stream ? (
             <>
             <br />

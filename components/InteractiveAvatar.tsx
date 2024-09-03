@@ -58,7 +58,7 @@ export default function InteractiveAvatar() {
   const [debug, setDebug] = useState<string>();
   const [avatarId, setAvatarId] = useState<string>("");
   const [voiceId, setVoiceId] = useState<string>("");
-  const [quality, setQuality] = useState<NewSessionRequestQualityEnum>("low");
+  const [quality, setQuality] = useState<NewSessionRequestQualityEnum>("medium");
   const [data, setData] = useState<NewSessionData>();
   const [text, setText] = useState<string>("");
   const [initialized, setInitialized] = useState(false); // Track initialization
@@ -67,6 +67,8 @@ export default function InteractiveAvatar() {
   const avatar = useRef<StreamingAvatarApi | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasStream, setCanvasStream] = useState<MediaStream | null>(null);
 
   const { input, setInput, handleSubmit } = useChat({
     onFinish: async (message) => {
@@ -237,14 +239,63 @@ export default function InteractiveAvatar() {
   }, []);
 
   useEffect(() => {
-    if (stream && mediaStream.current) {
+    if (stream && mediaStream.current && canvasRef.current) {
       mediaStream.current.srcObject = stream;
       mediaStream.current.onloadedmetadata = () => {
         mediaStream.current!.play();
         setDebug("Playing");
+        applyChromaKey();
       };
     }
   }, [mediaStream, stream]);
+
+  function applyChromaKey() {
+    if (!mediaStream.current || !canvasRef.current) return;
+
+    const video = mediaStream.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const drawFrame = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const red = data[i];
+        const green = data[i + 1];
+        const blue = data[i + 2];
+
+        // Adjust these values for better green screen detection
+        const threshold = 100;
+        const greenDominance = 1.5;
+
+        if (green > threshold && green > red * greenDominance && green > blue * greenDominance) {
+          // Make pixel fully transparent
+          data[i + 3] = 0;
+        } else if (green > red && green > blue) {
+          // For pixels that are greenish but not fully green, reduce green component
+          const greenness = (green - Math.max(red, blue)) / 255;
+          data[i + 1] = Math.max(0, green - greenness * 100);
+          data[i + 3] = Math.max(0, 255 - greenness * 200);
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
+
+    // Create a new MediaStream from the canvas
+    const canvasStream = canvas.captureStream();
+    setCanvasStream(canvasStream);
+  }
 
   function startRecording() {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -406,19 +457,24 @@ export default function InteractiveAvatar() {
       <Card>
         <CardBody className="h-[500px] flex flex-col justify-center items-center">
           {stream ? (
-            <div className="h-[500px] w-[900px] justify-center items-center flex rounded-lg overflow-hidden">
+            <div className="h-[500px] w-[900px] justify-center items-center flex rounded-lg overflow-hidden relative">
               <video
                 ref={mediaStream}
                 autoPlay
                 playsInline
+                style={{ display: 'none' }}
+              >
+                <track kind="captions" />
+              </video>
+              <canvas
+                ref={canvasRef}
                 style={{
                   width: "100%",
                   height: "100%",
                   objectFit: "contain",
+                  backgroundColor: "transparent",
                 }}
-              >
-                <track kind="captions" />
-              </video>
+              />
               <div className="flex flex-col gap-2 absolute bottom-3 right-3">
                 <Button
                   size="md"

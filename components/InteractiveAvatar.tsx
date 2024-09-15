@@ -633,14 +633,14 @@ export default function InteractiveAvatar() {
             }
           />
           <InteractiveAvatarTextInput
-            label="ZoBot"
-            aria-label="ZoBot"
-            placeholder="Chat with the ZoBot"
+            label="Chroma Realty Bot"
+            aria-label="Chroma Realty Bot"
+            placeholder="Chat with Kristina's bot from Chroma Realty"
             input={input}
             onSubmit={() => {
               setIsLoadingChat(true);
               if (!input) {
-                setDebug("Please enter text to send to ZoBot");
+                setDebug("Please enter a message to interact with Kristina's bot from Chroma Realty");
                 return;
               }
               handleSubmitToFlowise();

@@ -56,7 +56,7 @@ export default function InteractiveAvatar() {
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [stream, setStream] = useState<MediaStream>();
   const [debug, setDebug] = useState<string>();
-  const [avatarId, setAvatarId] = useState<string>("");
+  const [avatarId, setAvatarId] = useState<string>("Anna_public_3_20240108");
   const [voiceId, setVoiceId] = useState<string>("");
   const [quality, setQuality] = useState<NewSessionRequestQualityEnum>("medium");
   const [data, setData] = useState<NewSessionData>();
@@ -633,14 +633,14 @@ export default function InteractiveAvatar() {
             }
           />
           <InteractiveAvatarTextInput
-            label="Chroma Realty Bot"
-            aria-label="Chroma Realty Bot"
-            placeholder="Chat with Kristina's bot from Chroma Realty"
+            label="RAG Chat Bot"
+            aria-label="RAG Chat Bot"
+            placeholder="Chat with the Fetch.ai website Q&A bot"
             input={input}
             onSubmit={() => {
               setIsLoadingChat(true);
               if (!input) {
-                setDebug("Please enter a message to interact with Kristina's bot from Chroma Realty");
+                setDebug("Please enter a message to interact with the RAG Chat Bot");
                 return;
               }
               handleSubmitToFlowise();

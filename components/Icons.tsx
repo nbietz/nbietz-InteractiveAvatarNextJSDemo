@@ -1,5 +1,5 @@
-export function HeyGenLogo() {
-  return <img src="/heygen-logo.png" className="h-8" alt="HeyGen Logo" />;
+export function Logo() {
+  return <img src="/logo.png" className="h-8" alt="Logo" />;
 }
 
 type IconSvgProps = {

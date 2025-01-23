@@ -14,7 +14,7 @@ export default function NavBar() {
   return (
     <Navbar className="w-full">
       <NavbarBrand>
-        <Link isExternal aria-label="HeyGen" href="https://app.heygen.com/">
+        <Link isExternal aria-label="IconicEnterprises" href="https://ai.iconicenterprises.xyz/">
           <Logo />
         </Link>
         <div className="bg-gradient-to-br from-sky-300 to-indigo-500 bg-clip-text ml-4">

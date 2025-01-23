@@ -66,11 +66,7 @@ export const AVATARS = [
   {
     avatar_id: "Wayne_20240711",
     name: "Wayne",
-  },
-  {
-    avatar_id: "josh_lite3_20230714",
-    name: "Joshua HeyGen CEO",
-  },
+  }
 ];
 
 export const VOICES = [

@@ -57,10 +57,12 @@ export default function InteractiveAvatar() {
   const [stream, setStream] = useState<MediaStream>();
   const [debug, setDebug] = useState<string>();
   const [knowledgeId, setKnowledgeId] = useState<string>("");
-  const [avatarId, setAvatarId] = useState<string>("");
+  const [avatarId, setAvatarId] = useState<string>("Anna_public_3_20240108");
   const [language, setLanguage] = useState<string>('en');
   const [voiceId, setVoiceId] = useState<string>("");
+  const [voiceEmotion, setVoiceEmotion] = useState<VoiceEmotion>(VoiceEmotion.FRIENDLY);
   const [quality, setQuality] = useState<AvatarQuality>(AvatarQuality.Medium);
+  const [rate, setRate] = useState<string>("1.0");
 
   const [data, setData] = useState<StartAvatarResponse>();
   const [text, setText] = useState<string>("");
@@ -68,24 +70,39 @@ export default function InteractiveAvatar() {
   const avatar = useRef<StreamingAvatar | null>(null);
   const [chatMode, setChatMode] = useState("text_mode");
   const [isUserTalking, setIsUserTalking] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasStream, setCanvasStream] = useState<MediaStream | null>(null);
 
   const { input, setInput, handleSubmit } = useChat({
     onFinish: async (message) => {
       console.log("ChatGPT Response:", message);
 
       if (!avatar.current) {
+        console.error("Avatar not initialized");
         setDebug("Avatar API not initialized");
+        setIsLoadingChat(false);
         return;
       }
 
       //send the ChatGPT response to the Interactive Avatar
-      await avatar.current
-        .speak({
-          text: message.content, taskType: TaskType.REPEAT, taskMode: TaskMode.SYNC
-        })
-        .catch((e) => {
-          setDebug(e.message);
+      try {
+        setIsLoadingChat(true);
+        console.log("Speaking message:", message.content);
+        await avatar.current.speak({
+          text: message.content, 
+          taskType: TaskType.REPEAT, 
+          taskMode: TaskMode.SYNC
         });
+      } catch (e: any) {
+        console.error("Error in avatar speak:", e);
+        setDebug(`Avatar speak error: ${e.message}`);
+      } finally {
+        setIsLoadingChat(false);
+      }
+    },
+    onError: (error) => {
+      console.error("Chat error:", error);
+      setDebug(`Chat error: ${error.message}`);
       setIsLoadingChat(false);
     },
     initialMessages: [
@@ -97,6 +114,27 @@ export default function InteractiveAvatar() {
     ],
   });
 
+  // Add logging to chat submission
+  const handleChatSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (!input.trim()) {
+      setDebug("Please enter text to send to ChatGPT");
+      return;
+    }
+    
+    try {
+      setIsLoadingChat(true);
+      console.log("Submitting chat message:", input);
+      await handleSubmit(e as React.FormEvent);
+    } catch (e: any) {
+      console.error("Error submitting chat:", e);
+      setDebug(`Chat submission error: ${e.message}`);
+    } finally {
+      setIsLoadingChat(false);
+    }
+  };
 
   async function fetchAccessToken() {
     try {
@@ -146,12 +184,13 @@ export default function InteractiveAvatar() {
     });
     try {
       const res = await avatar.current.createStartAvatar({
-        quality: AvatarQuality.Low,
+        quality: quality,
         avatarName: avatarId,
         knowledgeId: knowledgeId, // Or use a custom `knowledgeBase`.
         voice: {
-          rate: 1.5, // 0.5 ~ 1.5
-          emotion: VoiceEmotion.EXCITED,
+          voiceId: voiceId,
+          rate: parseFloat(rate),
+          emotion: voiceEmotion,
           // elevenlabsSettings: {
           //   stability: 1,
           //   similarity_boost: 1,
@@ -160,17 +199,31 @@ export default function InteractiveAvatar() {
           // },
         },
         language: language,
-        disableIdleTimeout: true,
+        disableIdleTimeout: false,
       });
 
       setData(res);
-      // default to voice mode
+      console.log("Session started:", data);
+      setDebug(`Session started ${res.sessionId}`);
       await avatar.current?.startVoiceChat({
         useSilencePrompt: false
       });
       setChatMode("voice_mode");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting avatar session:", error);
+      // Check for the specific error structure from the streaming API
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        console.error("Server error response:", errorData);
+        setDebug(`Error: ${errorData.code} - ${errorData.message}`);
+      } else if (error?.detail) {
+        // Handle error.detail structure
+        const errorDetail = error.detail?.message || error.detail?.code || error.message;
+        setDebug(`Error: ${errorDetail}`);
+      } else {
+        // Fallback for other error types
+        setDebug(`Error: ${error.message || "Unknown error"}`);
+      }
     } finally {
       setIsLoadingSession(false);
     }
@@ -202,6 +255,7 @@ export default function InteractiveAvatar() {
   }
   async function endSession() {
     await avatar.current?.stopAvatar();
+    setDebug("Session ended");
     setStream(undefined);
   }
 
@@ -252,9 +306,58 @@ export default function InteractiveAvatar() {
       mediaStream.current.onloadedmetadata = () => {
         mediaStream.current!.play();
         setDebug("Playing");
+        applyChromaKey();
       };
     }
   }, [mediaStream, stream]);
+
+  function applyChromaKey() {
+    if (!mediaStream.current || !canvasRef.current) return;
+
+    const video = mediaStream.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const drawFrame = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const red = data[i];
+        const green = data[i + 1];
+        const blue = data[i + 2];
+
+        // Adjust these values for better green screen detection
+        const threshold = 100;
+        const greenDominance = 1.5;
+
+        if (green > threshold && green > red * greenDominance && green > blue * greenDominance) {
+          // Make pixel fully transparent
+          data[i + 3] = 0;
+        } else if (green > red && green > blue) {
+          // For pixels that are greenish but not fully green, reduce green component
+          const greenness = (green - Math.max(red, blue)) / 255;
+          data[i + 1] = Math.max(0, green - greenness * 100);
+          data[i + 3] = Math.max(0, 255 - greenness * 200);
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
+
+    // Create a new MediaStream from the canvas
+    const canvasStream = canvas.captureStream();
+    setCanvasStream(canvasStream);
+  }
   async function handleSubmitToLangflow() {
 
     const flowIdOrName = process.env.NEXT_PUBLIC_LANGFLOW_ENDPOINT ?? "";
@@ -360,21 +463,26 @@ export default function InteractiveAvatar() {
   return (
     <div className="w-full flex flex-col gap-4">
       <Card>
-        <CardBody className="h-[700px] flex flex-col justify-start items-center pt-8 overflow-y-auto">
+        <CardBody className="h-[800px] flex flex-col justify-start items-center pt-8 overflow-y-auto">
           {stream ? (
             <div className="h-[500px] w-[900px] justify-center items-center flex rounded-lg overflow-hidden">
               <video
                 ref={mediaStream}
                 autoPlay
                 playsInline
+                style={{ display: 'none' }}
+              >
+                <track kind="captions" />
+              </video>
+              <canvas
+                ref={canvasRef}
                 style={{
                   width: "100%",
                   height: "100%",
                   objectFit: "contain",
+                  backgroundColor: "transparent",
                 }}
-              >
-                <track kind="captions" />
-              </video>
+              />
               <div className="flex flex-col gap-2 absolute bottom-3 right-3">
                 <Button
                   className="bg-gradient-to-tr from-indigo-500 to-indigo-300 text-white rounded-lg"
@@ -396,43 +504,36 @@ export default function InteractiveAvatar() {
             </div>
           ) : !isLoadingSession ? (
             <div className="h-full justify-center items-center flex flex-col gap-8 w-[500px] self-center">
-              <div className="flex flex-col gap-2 w-full">
-                <p className="text-sm font-medium leading-none">
-                  Custom Knowledge ID (optional)
-                </p>
-                <Input
-                  placeholder="Enter a custom knowledge ID"
-                  value={knowledgeId}
-                  aria-label="Custom knowledge ID"
-                  onChange={(e) => setKnowledgeId(e.target.value)}
-                />
-                <p className="text-sm font-medium leading-none">
-                  Custom Avatar ID (optional)
-                </p>
-                <Input
-                  placeholder="Enter a custom avatar ID"
-                  value={avatarId}
-                  aria-label="Custom avatar ID"
-                  onChange={(e) => setAvatarId(e.target.value)}
-                />
-                <Select
-                  label="Select avatar"
-                  aria-label="Select avatar"
-                  placeholder="Or select one from these example avatars"
-                  size="md"
-                  onChange={(e) => {
-                    setAvatarId(e.target.value);
-                  }}
-                >
-                  {AVATARS.map((avatar) => (
-                    <SelectItem
-                      key={avatar.avatar_id}
-                      textValue={avatar.avatar_id}
-                    >
-                      {avatar.name}
-                    </SelectItem>
-                  ))}
-                </Select>
+              <div className="flex flex-col gap-8 w-full">
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-medium leading-none">
+                    Custom Avatar ID (optional)
+                  </p>
+                  <Input
+                    placeholder="Enter a custom avatar ID"
+                    value={avatarId}
+                    aria-label="Custom avatar ID"
+                    onChange={(e) => setAvatarId(e.target.value)}
+                  />
+                  <Select
+                    label="Select avatar"
+                    aria-label="Select avatar"
+                    placeholder="Or select one from these example avatars"
+                    size="md"
+                    onChange={(e) => {
+                      setAvatarId(e.target.value);
+                    }}
+                  >
+                    {AVATARS.map((avatar) => (
+                      <SelectItem
+                        key={avatar.avatar_id}
+                        textValue={avatar.avatar_id}
+                      >
+                        {avatar.name}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
               </div>
               <div className="flex flex-col gap-2 w-full">
                 <p className="text-sm font-medium leading-none">
@@ -461,39 +562,130 @@ export default function InteractiveAvatar() {
                 </Select>
               </div>
               <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium leading-none">
+                      Voice Emotion
+                    </p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium leading-none">
+                      Language
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-4 items-center">
+                  <Select
+                    label="Select emotion"
+                    aria-label="Select emotion"
+                    placeholder="Select emotion"
+                    size="md"
+                    value={voiceEmotion}
+                    className="flex-1"
+                    onChange={(e) => {
+                      setVoiceEmotion(e.target.value as VoiceEmotion);
+                    }}
+                  >
+                    {Object.values(VoiceEmotion).map((emotion) => (
+                      <SelectItem key={emotion} value={emotion}>
+                        {emotion.charAt(0).toUpperCase() + emotion.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Select language"
+                    aria-label="Select language"
+                    placeholder="Select language"
+                    className="flex-1"
+                    selectedKeys={[language]}
+                    onChange={(e) => {
+                      setLanguage(e.target.value);
+                    }}
+                  >
+                    {STT_LANGUAGE_LIST.map((lang) => (
+                      <SelectItem key={lang.key}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium leading-none">
+                      Quality
+                    </p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium leading-none">
+                      Rate
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-4 items-center">
+                  <Select
+                    label="Select quality"
+                    aria-label="Select quality"
+                    placeholder="Select quality"
+                    size="md"
+                    value={quality}
+                    className="flex-1"
+                    onChange={(e) => {
+                      setQuality(e.target.value as AvatarQuality);
+                    }}
+                  >
+                    <SelectItem value="low" key={"low"}>Low</SelectItem>
+                    <SelectItem value="medium" key={"medium"}>Medium</SelectItem>
+                    <SelectItem value="high" key={"high"}>High</SelectItem>
+                  </Select>
+                  <div className="flex flex-col gap-1 flex-1">
+                    <div className="relative">
+                      <div className="flex justify-between text-xs text-gray-500 px-1 mb-2">
+                        <span>0.5</span>
+                        <span>1.0</span>
+                        <span>1.5</span>
+                      </div>
+                      <div className="relative h-[32px] flex items-center">
+                        <div className="absolute w-full h-[24px] bg-gradient-to-b from-gray-100 via-gray-200 to-gray-300 rounded-full shadow-[inset_0_3px_4px_rgba(0,0,0,0.25)]">
+                          {Array.from({ length: 9 }, (_, i) => (
+                            <div
+                              key={i}
+                              className="absolute w-[2px] h-[10px] bg-gray-300 top-[7px]"
+                              style={{ left: `${(i + 1) * 10}%` }}
+                            />
+                          ))}
+                          <div 
+                            className="absolute h-full bg-gradient-to-b from-indigo-400 via-indigo-500 to-indigo-600 rounded-full shadow-[0_2px_4px_rgba(99,102,241,0.4)] transition-all"
+                            style={{ 
+                              width: `${((parseFloat(rate) - 0.5) / 1) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="1.5"
+                          step="0.1"
+                          value={rate}
+                          onChange={(e) => setRate(e.target.value)}
+                          className="relative w-full h-[24px] appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-[24px] [&::-webkit-slider-thumb]:w-[24px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_2px_4px_rgba(0,0,0,0.3)] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-indigo-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:h-[24px] [&::-moz-range-thumb]:w-[24px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_2px_4px_rgba(0,0,0,0.3)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-indigo-500 [&::-moz-range-thumb]:cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 w-full">
                 <p className="text-sm font-medium leading-none">
-                  Quality
+                  Custom Knowledge ID (optional)
                 </p>
-                <Select
-                  label="Select quality"
-                  aria-label="Select quality"
-                  placeholder="Select quality"
-                  size="md"
-                  value={quality}
-                  onChange={(e) => {
-                    setQuality(e.target.value as AvatarQuality);
-                  }}
-                >
-                  <SelectItem value="low" key={"low"}>Low</SelectItem>
-                  <SelectItem value="medium" key={"medium"}>Medium</SelectItem>
-                  <SelectItem value="high" key={"high"}>High</SelectItem>
-                </Select>
-                <Select
-                  label="Select language"
-                  aria-label="Select language"
-                  placeholder="Select language"
-                  className="max-w-xs"
-                  selectedKeys={[language]}
-                  onChange={(e) => {
-                    setLanguage(e.target.value);
-                  }}
-                >
-                  {STT_LANGUAGE_LIST.map((lang) => (
-                    <SelectItem key={lang.key}>
-                      {lang.label}
-                    </SelectItem>
-                  ))}
-                </Select>
+                <Input
+                  placeholder="Enter a custom knowledge ID"
+                  value={knowledgeId}
+                  aria-label="Custom knowledge ID"
+                  onChange={(e) => setKnowledgeId(e.target.value)}
+                />
               </div>
               <Button
                 className="bg-gradient-to-tr from-indigo-500 to-indigo-300 w-full text-white"
@@ -543,7 +735,7 @@ export default function InteractiveAvatar() {
                     setDebug("Please enter text to send to ChatGPT");
                     return;
                   }
-                  handleSubmit();
+                  handleChatSubmit();
                 }}
                 setInput={setInput}
                 disabled={!stream}
@@ -584,11 +776,26 @@ export default function InteractiveAvatar() {
           )}
         </CardFooter>
       </Card>
-      <p className="font-mono text-right">
-        <span className="font-bold">Console:</span>
-        <br />
-        {debug}
-      </p>
+      <div className="flex justify-between items-start w-full">
+        <p className="font-mono text-left">
+          <span className="font-bold">Chat Session ID:</span>
+          <br />
+          {chatSessionId}
+          {stream ? (
+            <>
+            <br />
+            <span className="font-bold">HeyGen Session ID:</span>
+            <br />
+            {data?.session_id}
+            <br /></>
+          ) : null}
+        </p>
+        <p className="font-mono text-right">
+          <span className="font-bold">Console:</span>
+          <br />
+          {debug}
+        </p>
+      </div>
     </div>
   );
 }
